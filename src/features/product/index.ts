@@ -1,0 +1,9 @@
+export { ProductDetailView } from "./ProductDetailView";
+export { ProductGallery } from "./ProductGallery";
+export { PersonalizeCard } from "./PersonalizeCard";
+export { PreviewModal } from "./PreviewModal";
+export { StickyAddBar } from "./StickyAddBar";
+export { ProductTabs } from "./ProductTabs";
+export { FrequentlyBought } from "./FrequentlyBought";
+export { ReviewsSection } from "./ReviewsSection";
+export { AlsoViewed } from "./AlsoViewed";
