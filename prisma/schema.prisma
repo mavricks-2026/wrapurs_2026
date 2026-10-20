@@ -1,0 +1,289 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PLACED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum AddressType {
+  HOME
+  WORK
+}
+
+enum OptionType {
+  SELECT
+  COLOR
+  TEXT
+  UPLOAD
+}
+
+enum PaymentProvider {
+  RAZORPAY
+  COD
+}
+
+enum PaymentMethod {
+  UPI
+  CARD
+  NETBANKING
+  COD
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  phone        String?
+  passwordHash String?
+  role         UserRole @default(CUSTOMER)
+  image        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  addresses          Address[]
+  orders             Order[]
+  inventoryMovements InventoryMovement[]
+  productReviews     ProductReview[]
+}
+
+model Address {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      AddressType @default(HOME)
+  name      String
+  mobile    String
+  line1     String
+  line2     String?
+  city      String
+  state     String
+  pincode   String
+  isDefault Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([userId])
+}
+
+model Category {
+  id          String  @id @default(uuid())
+  name        String
+  slug        String  @unique
+  icon        String?
+  description String?
+  sortOrder   Int     @default(0)
+
+  products ProductCategory[]
+}
+
+model Product {
+  id           String        @id @default(uuid())
+  slug         String        @unique
+  title        String
+  description  String
+  priceInr     Int
+  compareAtInr Int?
+  badge        String?
+  rating       Float         @default(0)
+  reviewCount  Int           @default(0)
+  isFeatured   Boolean       @default(false)
+  homeOrder    Int?
+  status       ProductStatus @default(ACTIVE)
+
+  tags             String[] @default([])
+  storyImageUrl    String?
+  previewImageUrl  String?
+  longDescription  String[] @default([])
+  features         String[] @default([])
+  care             String[] @default([])
+  offers           String[] @default([])
+  reviewBreakdown  Json?
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  images             ProductImage[]
+  categories         ProductCategory[]
+  optionGroups       OptionGroup[]
+  inventory          Inventory?
+  orderItems         OrderItem[]
+  inventoryMovements InventoryMovement[]
+  specs              ProductSpec[]
+  reviews            ProductReview[]
+
+  @@index([status])
+  @@index([tags], type: Gin)
+}
+
+model ProductImage {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  sortOrder Int     @default(0)
+  isPrimary Boolean @default(false)
+
+  @@index([productId])
+}
+
+model ProductCategory {
+  productId  String
+  categoryId String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([productId, categoryId])
+}
+
+model OptionGroup {
+  id        String     @id @default(uuid())
+  productId String?
+  product   Product?   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  key       String
+  name      String
+  type      OptionType
+  required  Boolean    @default(false)
+  sortOrder Int        @default(0)
+
+  options Option[]
+
+  @@index([productId])
+}
+
+model Option {
+  id            String      @id @default(uuid())
+  groupId       String
+  group         OptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  label         String
+  value         String
+  hex           String?
+  priceDeltaInr Int         @default(0)
+  isDefault     Boolean     @default(false)
+  sortOrder     Int         @default(0)
+
+  @@index([groupId])
+}
+
+model Inventory {
+  productId         String   @id
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku               String   @unique
+  quantity          Int      @default(0)
+  lowStockThreshold Int      @default(5)
+  trackQuantity     Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+}
+
+model InventoryMovement {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  delta     Int
+  reason    String
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+}
+
+model Order {
+  id                String          @id @default(uuid())
+  orderNumber       String          @unique
+  userId            String?
+  user              User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email             String
+  status            OrderStatus     @default(PLACED)
+  address           Json
+  paymentProvider   PaymentProvider
+  paymentMethod     PaymentMethod
+  paid              Boolean         @default(false)
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  paymentReference  String?
+  amounts           Json
+  currency          String          @default("INR")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  items OrderItem[]
+
+  @@index([email])
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id              String   @id @default(uuid())
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String?
+  product         Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  slug            String
+  title           String
+  image           String
+  unitPriceInr    Int
+  compareAtInr    Int?
+  qty             Int
+  personalization Json?
+
+  @@index([orderId])
+}
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model ProductSpec {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  label     String
+  value     String
+  sortOrder Int     @default(0)
+
+  @@index([productId])
+}
+
+model ProductReview {
+  id             String   @id @default(uuid())
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  title          String
+  body           String   @db.Text
+  authorName     String
+  authorLocation String?
+  rating         Int
+  imageUrl       String?
+  createdAt      DateTime @default(now())
+
+  @@index([productId])
+}

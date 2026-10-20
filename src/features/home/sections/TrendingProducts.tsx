@@ -5,10 +5,17 @@ import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { ProductCard } from "@/components/common/ProductCard";
 import { AnimatedText, Reveal, StaggerGroup, StaggerItem } from "@/components/motion";
-import { products, trendingSection } from "@/config/content";
+import type { Product } from "@/config/catalog";
+import { trendingSection } from "@/config/content";
 import { Icon } from "@/components/ui/Icon";
 
-export function TrendingProducts() {
+/**
+ * TrendingProducts — the Home "Trending Now" rail. The product list is supplied
+ * by the server page (static featured items first, then featured database
+ * products) so the rail can include admin-created keepsakes without any client
+ * data fetching.
+ */
+export function TrendingProducts({ products }: { products: Product[] }) {
   const visible = products.slice(0, trendingSection.visibleCount);
 
   return (

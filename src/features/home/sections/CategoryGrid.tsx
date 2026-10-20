@@ -5,9 +5,18 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Container } from "@/components/ui/Container";
 import { Icon } from "@/components/ui/Icon";
 import { StaggerGroup, StaggerItem } from "@/components/motion";
-import { categories, categoriesSection } from "@/config/content";
+import { categories as defaultCategories, categoriesSection } from "@/config/content";
 
-export function CategoryGrid() {
+export type CategoryTile = { name: string; icon: string; href: string };
+
+/**
+ * CategoryGrid — Home "Shop by Category" tiles.
+ *
+ * The Home page (a server component) passes the database categories here;
+ * when no prop is supplied it falls back to the built-in demo list, so the
+ * component keeps working standalone.
+ */
+export function CategoryGrid({ categories = defaultCategories }: { categories?: CategoryTile[] }) {
   return (
     <section className="bg-section py-14">
       <Container>

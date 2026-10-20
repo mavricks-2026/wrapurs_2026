@@ -23,9 +23,17 @@ export const authConfig = {
   pages: { signIn: "/login", error: "/login" },
   providers: googleEnabled ? [Google({ allowDangerousEmailAccountLinking: true })] : [],
   callbacks: {
-    /** Route guard used by middleware — flip to a redirect once roles exist. */
+    /**
+     * Route guard used by middleware.
+     * - /account/* requires a logged-in user (unchanged).
+     * - /admin/* requires a logged-in user whose JWT role is ADMIN
+     *   (role is only ever set in `auth.ts` after a successful login).
+     */
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = Boolean(auth?.user);
+      if (nextUrl.pathname.startsWith("/admin")) {
+        return isLoggedIn && auth?.user?.role === "ADMIN";
+      }
       if (nextUrl.pathname.startsWith("/account")) return isLoggedIn;
       return true;
     },
@@ -34,6 +42,7 @@ export const authConfig = {
       if (user) {
         token.id = user.id;
         token.phone = user.phone;
+        token.role = user.role ?? "CUSTOMER";
       }
       return token;
     },
@@ -42,6 +51,7 @@ export const authConfig = {
       if (session.user) {
         session.user.id = (token.id as string | undefined) ?? session.user.id;
         session.user.phone = token.phone as string | undefined;
+        session.user.role = (token.role as string | undefined) ?? "CUSTOMER";
       }
       return session;
     },

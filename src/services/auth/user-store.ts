@@ -10,6 +10,8 @@ import { demoCredentials } from "@/config/auth";
  * four functions. The store resets whenever the server process restarts.
  */
 
+export type UserRole = "CUSTOMER" | "ADMIN";
+
 export type StoredUser = {
   id: string;
   name: string;
@@ -17,6 +19,7 @@ export type StoredUser = {
   phone?: string;
   image?: string;
   passwordHash: string;
+  role: UserRole;
   createdAt: string;
 };
 
@@ -51,6 +54,7 @@ function seedDemoUser() {
     email: demoCredentials.email,
     phone: "+91 98765 43210",
     passwordHash: hashPassword(demoCredentials.password),
+    role: "CUSTOMER",
     createdAt: new Date().toISOString(),
   });
 }
@@ -74,6 +78,7 @@ export function createUser(input: {
     email: input.email.trim(),
     phone: input.phone?.trim() || undefined,
     passwordHash: hashPassword(input.password),
+    role: "CUSTOMER",
     createdAt: new Date().toISOString(),
   };
   users.set(key, user);

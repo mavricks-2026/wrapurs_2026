@@ -15,6 +15,7 @@ next-env.d.ts
 .DS_Store
 *.pem
 .vercel
+/.tmp/
 
 # debug
 npm-debug.log*
@@ -24,6 +25,7 @@ yarn-error.log*
 # env
 .env
 .env*.local
+.env.txt
 
 # typescript
 *.tsbuildinfo
@@ -32,3 +34,4 @@ yarn-error.log*
 /coverage
 /playwright-report
 /test-results
+.env.production

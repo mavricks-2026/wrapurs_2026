@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { getProductsBySlugs } from "@/config/catalog";
 import { emptyCartTrendingSlugs } from "@/config/cart";
+import { getMergedProductsBySlugs } from "@/services/product.service";
 import { WishlistView } from "@/features/wishlist";
 
 export const metadata: Metadata = {
@@ -13,8 +13,8 @@ export const metadata: Metadata = {
  * Wishlist page. Backed by the persisted wishlist store, which is the same
  * store the heart-pop micro-interaction on every product card writes to.
  */
-export default function WishlistPage() {
-  const suggested = getProductsBySlugs(emptyCartTrendingSlugs);
+export default async function WishlistPage() {
+  const suggested = await getMergedProductsBySlugs(emptyCartTrendingSlugs);
 
   return <WishlistView suggested={suggested} />;
 }

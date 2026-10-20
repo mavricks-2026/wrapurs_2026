@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { getProductsBySlugs } from "@/config/catalog";
 import { cartSuggestSlugs, emptyCartTrendingSlugs } from "@/config/cart";
+import { getMergedProductsBySlugs } from "@/services/product.service";
 import { CartView } from "@/features/cart";
 
 export const metadata: Metadata = {
@@ -13,9 +13,9 @@ export const metadata: Metadata = {
  * Cart page. The interactive view lives in `CartView` (a client component);
  * this server component just supplies the suggestion rails.
  */
-export default function CartPage() {
-  const suggested = getProductsBySlugs(cartSuggestSlugs);
-  const trending = getProductsBySlugs(emptyCartTrendingSlugs);
+export default async function CartPage() {
+  const suggested = await getMergedProductsBySlugs(cartSuggestSlugs);
+  const trending = await getMergedProductsBySlugs(emptyCartTrendingSlugs);
 
   return <CartView suggested={suggested} trending={trending} />;
 }

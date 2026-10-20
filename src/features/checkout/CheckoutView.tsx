@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
@@ -42,8 +42,10 @@ const enabledMethods = getEnabledPaymentMethods({ cod: features.cod, razorpay: f
 /**
  * CheckoutView — the client orchestrator for /checkout. Reads the persisted
  * cart, computes every amount once, holds the address/payment selection and
- * drives the whole payment flow (Razorpay live / mock, or Cash on Delivery)
- * before creating a local order and redirecting to the confirmation page.
+ * drives the whole flow: it first persists the order via POST /api/orders,
+ * then (for online payments) opens a gateway order for that persisted order
+ * and verifies the payment server-side, before routing to the confirmation
+ * page with the persisted order id. Cash on Delivery is persisted unpaid.
  */
 export function CheckoutView({ demoPayments }: { demoPayments: boolean }) {
   const mounted = useMounted();
@@ -52,6 +54,9 @@ export function CheckoutView({ demoPayments }: { demoPayments: boolean }) {
   const lines = useCartStore((s) => s.lines);
   const clearCart = useCartStore((s) => s.clear);
   const placeOrder = useOrderStore((s) => s.placeOrder);
+  // Guards against double-submits (double click / re-entrancy while a request
+  // is in flight), since `placing` state updates are async.
+  const submittingRef = useRef(false);
 
   const lineCount = useCartStore(selectLineCount);
   const mrpTotal = useCartStore(selectMrpTotal);
@@ -136,11 +141,63 @@ export function CheckoutView({ demoPayments }: { demoPayments: boolean }) {
     }
   }
 
-  /** Persist the order, empty the cart and route to the confirmation page. */
-  function completeOrder({ paid, reference }: { paid: boolean; reference: string }) {
+  /**
+   * Create the persisted order on the server (POST /api/orders). Only slugs,
+   * quantities, personalization, the address, email and payment method are sent
+   * — prices/totals are recomputed server-side and are never trusted from here.
+   * Returns the persisted order id, which is the single source of truth for the
+   * confirmation page and for every payment call.
+   */
+  async function createPersistedOrder(): Promise<string> {
+    const response = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: accountEmail ?? demoAccount.email,
+        method,
+        address: {
+          name: address?.name ?? accountName ?? demoAccount.name,
+          mobile: address?.mobile ?? demoAccount.mobile,
+          line1: address?.line1 ?? "",
+          line2: address?.line2 ?? null,
+          city: address?.city ?? "",
+          state: address?.state ?? "",
+          pincode: address?.pincode ?? "",
+          type: address?.type ?? "HOME",
+        },
+        lines: lines.map((l) => ({
+          slug: l.slug,
+          qty: l.qty,
+          variant: l.variant,
+          personalization: l.personalization ?? null,
+        })),
+      }),
+    });
+
+    const data = (await response.json()) as {
+      order?: { id?: string };
+      error?: string;
+      detail?: string;
+    };
+    if (!response.ok || !data.order?.id) {
+      throw new Error(data.detail ?? data.error ?? "We couldn't place your order. Please try again.");
+    }
+    return data.order.id;
+  }
+
+  /**
+   * Mirror the just-created order into the local store (so the existing
+   * confirmation page can render it) using the PERSISTED server order id, then
+   * empty the cart and route to the confirmation page.
+   */
+  function completeOrder(
+    orderId: string,
+    { paid, reference }: { paid: boolean; reference: string },
+  ) {
     const chosen = getPaymentMethod(method);
     setRedirecting(true);
-    const order = placeOrder({
+    placeOrder({
+      id: orderId,
       email: accountEmail ?? demoAccount.email,
       items: lines.map((l) => ({
         id: l.id,
@@ -182,54 +239,70 @@ export function CheckoutView({ demoPayments }: { demoPayments: boolean }) {
     });
 
     clearCart();
-    router.push(`/order/${order.id}`);
+    router.push(`/order/${orderId}`);
   }
 
   async function handlePay() {
+    if (submittingRef.current) return;
     if (!address) {
       setError("Please select a delivery address before paying.");
       return;
     }
+    submittingRef.current = true;
     setError(null);
     setPlacing(true);
 
     try {
-      const response = await fetch("/api/payment/create", {
+      // 1. Persist the order first — its server id drives every next step.
+      const orderId = await createPersistedOrder();
+
+      // 2. Cash on Delivery — the order is placed straight away and stays
+      //    unpaid; Razorpay is never invoked.
+      if (selectedPayment?.provider === "cod") {
+        completeOrder(orderId, { paid: false, reference: `cod_${orderId.slice(0, 8)}` });
+        return;
+      }
+
+      // 3. Online payment — ask the server to open a gateway order for this
+      //    persisted order. The server reads the amount from the stored order;
+      //    nothing about the price is sent from the browser.
+      const createResponse = await fetch("/api/payment/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          method,
-          amount: totals.total,
-          currency: site.currency.code,
-          receipt: `wu_${Date.now()}`,
-          email: demoAccount.email,
-          notes: { items: String(totals.lineCount) },
-        }),
+        body: JSON.stringify({ orderId }),
       });
-      const data = (await response.json()) as {
+      const created = (await createResponse.json()) as {
         ok: boolean;
-        provider?: string;
         mode?: string;
+        provider?: string;
         orderId?: string;
+        wrapursOrderId?: string;
         keyId?: string;
         currency?: string;
         error?: string;
       };
 
-      if (!response.ok || !data.ok || !data.orderId) {
-        throw new Error(data.error ?? "Could not start the payment.");
-      }
-
-      // Cash on Delivery — settled offline, order is placed straight away.
-      if (data.provider === "cod") {
-        completeOrder({ paid: false, reference: data.orderId });
-        return;
+      if (!createResponse.ok || !created.ok || !created.orderId) {
+        throw new Error(created.error ?? "Could not start the payment.");
       }
 
       // Razorpay mock mode — no live keys configured, simulate a capture.
-      if (data.mode === "mock") {
+      // (The verify route still refuses mock ids in production.)
+      if (created.mode === "mock") {
         await new Promise((resolve) => setTimeout(resolve, 900));
-        completeOrder({ paid: true, reference: `pay_mock_${data.orderId.slice(-12)}` });
+        const verifyResponse = await fetch("/api/payment/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId,
+            razorpayOrderId: created.orderId,
+            paymentId: `pay_mock_${created.orderId.slice(-12)}`,
+            signature: "",
+          }),
+        });
+        const verify = (await verifyResponse.json()) as { ok: boolean; error?: string };
+        if (!verify.ok) throw new Error(verify.error ?? "Payment verification failed.");
+        completeOrder(orderId, { paid: true, reference: `pay_mock_${created.orderId.slice(-12)}` });
         return;
       }
 
@@ -238,15 +311,15 @@ export function CheckoutView({ demoPayments }: { demoPayments: boolean }) {
       if (!loaded) throw new Error("Unable to load the payment gateway.");
 
       const success = await openRazorpayCheckout({
-        key: data.keyId as string,
+        key: created.keyId as string,
         amount: Math.round(totals.total * 100),
-        currency: data.currency ?? site.currency.code,
+        currency: created.currency ?? site.currency.code,
         name: site.name,
         description: `WrapUrs order · ${totals.lineCount} item${totals.lineCount === 1 ? "" : "s"}`,
-        order_id: data.orderId,
+        order_id: created.orderId,
         prefill: {
           name: address.name,
-          email: demoAccount.email,
+          email: accountEmail ?? demoAccount.email,
           contact: address.mobile,
         },
         notes: { method },
@@ -257,8 +330,8 @@ export function CheckoutView({ demoPayments }: { demoPayments: boolean }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider: "razorpay",
-          orderId: success.razorpay_order_id,
+          orderId,
+          razorpayOrderId: success.razorpay_order_id,
           paymentId: success.razorpay_payment_id,
           signature: success.razorpay_signature,
         }),
@@ -266,11 +339,12 @@ export function CheckoutView({ demoPayments }: { demoPayments: boolean }) {
       const verify = (await verifyResponse.json()) as { ok: boolean; error?: string };
       if (!verify.ok) throw new Error(verify.error ?? "Payment verification failed.");
 
-      completeOrder({ paid: true, reference: success.razorpay_payment_id });
+      completeOrder(orderId, { paid: true, reference: success.razorpay_payment_id });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
       setError(message === "payment_cancelled" ? "Payment cancelled. You can try again." : message);
       setPlacing(false);
+      submittingRef.current = false;
     }
   }
 

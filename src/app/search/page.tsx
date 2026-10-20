@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { searchProducts } from "@/config/catalog";
+import { getMergedProducts } from "@/services/product.service";
 import { ProductBrowser, SearchBar, ShopHero, SupportCta } from "@/features/shop";
 
 export const metadata: Metadata = {
@@ -13,28 +13,36 @@ export default async function SearchPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
-  const query = (q ?? "").trim();
-  const results = query ? searchProducts(query) : [];
+  const displayQuery = (q ?? "").trim();
+  const needle = displayQuery.toLowerCase();
+  const all = needle ? await getMergedProducts() : [];
+  const results = needle
+    ? all.filter((product) =>
+        [product.title, product.description, ...product.tags].some((field) =>
+          field.toLowerCase().includes(needle),
+        ),
+      )
+    : [];
 
   return (
     <>
       <ShopHero
-        title={query ? `Results for “${query}”` : "Search Keepsakes"}
-        highlight={query ? "Results" : "Keepsakes"}
+        title={needle ? `Results for “${displayQuery}”` : "Search Keepsakes"}
+        highlight={needle ? "Results" : "Keepsakes"}
         subtitle={
-          query
+          needle
             ? `${results.length} ${results.length === 1 ? "keepsake" : "keepsakes"} matched your search.`
             : "Looking for the perfect personalized gift? Search by product, occasion or style."
         }
       >
-        <SearchBar initialQuery={query} />
+        <SearchBar initialQuery={displayQuery} />
       </ShopHero>
 
-      {query ? (
+      {needle ? (
         <ProductBrowser
           products={results}
           showFilters={false}
-          emptyMessage={`No keepsakes matched “${query}”. Try “lamp”, “frame”, “hamper” or “bracelet”.`}
+          emptyMessage={`No keepsakes matched “${displayQuery}”. Try “lamp”, “frame”, “hamper” or “bracelet”.`}
         />
       ) : null}
 

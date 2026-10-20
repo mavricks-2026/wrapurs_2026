@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { catalog, shopFilters, shopHero } from "@/config/catalog";
+import { shopFilters, shopHero } from "@/config/catalog";
+import { getMergedProducts } from "@/services/product.service";
 import { ProductBrowser, ShopHero, SupportCta } from "@/features/shop";
 
 export const metadata: Metadata = {
@@ -8,7 +9,9 @@ export const metadata: Metadata = {
     "Browse every handcrafted personalized gift — glowing photo lamps, engraved jewellery, memory frames and curated hampers. Filter by occasion, price and rating.",
 };
 
-export default function ShopPage() {
+export default async function ShopPage() {
+  const products = await getMergedProducts();
+
   return (
     <>
       <ShopHero
@@ -20,7 +23,7 @@ export default function ShopPage() {
         imageBadge={shopHero.imageBadge}
       />
 
-      <ProductBrowser products={catalog} filters={shopFilters} />
+      <ProductBrowser products={products} filters={shopFilters} />
 
       <SupportCta />
     </>

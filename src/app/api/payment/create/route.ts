@@ -1,28 +1,25 @@
 /**
  * POST /api/payment/create
  *
- * Creates a gateway order for the chosen payment method. Returns everything the
- * browser needs: the gateway order id, the public key (live mode) and the mode
- * (`live` | `mock` | `offline`) so the client knows how to proceed.
- *
- * NOTE: with no database yet, the client computes the payable total and sends
- * it here. When Prisma lands (M10) this route must recompute the amount from
- * the server-side cart/order and ignore the client value.
+ * Creates a gateway order for a PERSISTED order (created via POST /api/orders).
+ * The browser sends only our internal `orderId`; the payable amount, currency
+ * and method are read from the stored order — a client-supplied amount is never
+ * trusted or even read. Returns everything the browser needs to continue: the
+ * gateway order id, the public key (live mode) and the mode
+ * (`live` | `mock` | `offline`).
  */
 
 import { NextResponse } from "next/server";
-import { getPaymentMethod } from "@/config/payments";
+import {
+  attachGatewayOrderId,
+  getOrderPaymentContext,
+} from "@/services/order.service";
 import { getPaymentGateway } from "@/services/payment";
 
 export const runtime = "nodejs";
 
 type Body = {
-  method?: string;
-  amount?: number;
-  currency?: string;
-  receipt?: string;
-  email?: string;
-  notes?: Record<string, string>;
+  orderId?: string;
 };
 
 export async function POST(request: Request) {
@@ -33,28 +30,46 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const method = getPaymentMethod(body.method ?? "");
-  if (!method) {
-    return NextResponse.json({ ok: false, error: "Unknown payment method." }, { status: 400 });
+  const orderId = typeof body.orderId === "string" ? body.orderId.trim() : "";
+  if (!orderId) {
+    return NextResponse.json({ ok: false, error: "An order id is required." }, { status: 400 });
   }
 
-  const amount = Number(body.amount);
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return NextResponse.json({ ok: false, error: "Invalid amount." }, { status: 400 });
+  const context = await getOrderPaymentContext(orderId);
+  if (!context.ok) {
+    return NextResponse.json(
+      { ok: false, error: context.error },
+      { status: context.status },
+    );
+  }
+  const order = context.data;
+
+  if (order.paid) {
+    return NextResponse.json({ ok: false, error: "This order is already paid." }, { status: 409 });
   }
 
   try {
-    const gateway = getPaymentGateway(method.provider);
+    const gateway = getPaymentGateway(order.providerId);
     const result = await gateway.createOrder({
-      amount,
-      currency: body.currency ?? "INR",
-      method: method.id,
-      receipt: body.receipt,
-      email: body.email,
-      notes: { ...body.notes, ...(method.fee ? { codFee: String(method.fee) } : {}) },
+      // Amount and currency come from the stored order — never the client body.
+      amount: order.amount,
+      currency: order.currency,
+      method: order.methodId,
+      receipt: order.orderNumber,
+      email: order.email,
     });
 
-    return NextResponse.json({ ok: true, method: method.id, ...result });
+    // COD is settled offline; only online gateways get a stored gateway order id.
+    if (result.mode === "live" || result.mode === "mock") {
+      await attachGatewayOrderId(order.id, result.orderId);
+    }
+
+    return NextResponse.json({
+      ok: true,
+      method: order.methodId,
+      wrapursOrderId: order.id,
+      ...result,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Payment could not be started.";
     return NextResponse.json({ ok: false, error: message }, { status: 502 });

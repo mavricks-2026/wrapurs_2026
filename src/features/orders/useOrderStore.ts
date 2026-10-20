@@ -60,6 +60,8 @@ export type Order = {
 };
 
 export type PlaceOrderInput = Omit<Order, "id" | "createdAt" | "status"> & {
+  /** Persisted server order id — used verbatim when provided. */
+  id?: string;
   status?: OrderStatus;
 };
 
@@ -93,11 +95,13 @@ export const useOrderStore = create<OrderState>()(
       placeOrder: (input) => {
         const order: Order = {
           ...input,
-          id: newOrderId(get().orders.map((o) => o.id)),
+          id: input.id ?? newOrderId(get().orders.map((o) => o.id)),
           createdAt: new Date().toISOString(),
           status: input.status ?? "placed",
         };
-        set((state) => ({ orders: [order, ...state.orders] }));
+        set((state) => ({
+          orders: [order, ...state.orders.filter((o) => o.id !== order.id)],
+        }));
         return order;
       },
       getOrder: (id) => get().orders.find((o) => o.id === id),
