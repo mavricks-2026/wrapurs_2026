@@ -86,7 +86,18 @@ export function SettingsManager({ initialSettings }: { initialSettings: SiteSett
         body: JSON.stringify(settings),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: { ok?: boolean; error?: string } = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(
+          res.ok
+            ? "Saved, but received unexpected response format."
+            : `Server returned error (${res.status}): ${text.slice(0, 100) || "Empty response"}`
+        );
+      }
+
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "Failed to update settings");
       }

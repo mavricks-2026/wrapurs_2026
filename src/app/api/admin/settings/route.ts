@@ -16,25 +16,37 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const isAdmin = await requireAdmin();
-  if (!isAdmin) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
-
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+    const isAdmin = await requireAdmin();
+    if (!isAdmin) {
+      return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ ok: false, error: "invalid_body" }, { status: 400 });
+    }
+
+    const input = (body ?? {}) as Partial<SiteSettings>;
+    const updated = await updateSiteSettings(input);
+
+    // Safely attempt cache revalidation
+    try {
+      revalidatePath("/", "layout");
+      revalidatePath("/");
+      revalidatePath("/admin/settings");
+    } catch (revalErr) {
+      console.warn("Revalidation note:", revalErr);
+    }
+
+    return NextResponse.json({ ok: true, settings: updated });
+  } catch (err) {
+    console.error("Failed to update settings:", err);
+    return NextResponse.json(
+      { ok: false, error: err instanceof Error ? err.message : "Failed to update settings" },
+      { status: 500 }
+    );
   }
-
-  const input = (body ?? {}) as Partial<SiteSettings>;
-  const updated = await updateSiteSettings(input);
-
-  // Invalidate cache for storefront pages so changes appear immediately
-  revalidatePath("/", "layout");
-  revalidatePath("/");
-  revalidatePath("/admin/settings");
-
-  return NextResponse.json({ ok: true, settings: updated });
 }
