@@ -20,7 +20,8 @@
 
   /* Consistent, accessible focus ring */
   :focus-visible {
-    @apply outline-none ring-2 ring-brand/50 ring-offset-2 ring-offset-white;
+    @apply outline-none ring-2 ring-offset-2 ring-offset-white;
+    --tw-ring-color: var(--color-brand, #B96CB4);
   }
 
   /* Nicer scrollbar (progressive enhancement) */
