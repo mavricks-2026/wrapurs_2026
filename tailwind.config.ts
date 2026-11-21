@@ -12,9 +12,12 @@ const config: Config = {
     container: { center: true },
     extend: {
       colors: {
-        brand: { DEFAULT: colors.brand, dark: colors.brandDark },
-        surface: colors.surfaceBg,
-        section: colors.sectionBg,
+        brand: {
+          DEFAULT: "var(--color-brand, #B96CB4)",
+          dark: "var(--color-brand-dark, #854880)",
+        },
+        surface: "var(--color-surface, #FCF6FC)",
+        section: "var(--color-section, #F7EAF6)",
         line: colors.borderPink,
         plum: { DEFAULT: colors.plumDark, muted: colors.plumMuted },
         feedback: {

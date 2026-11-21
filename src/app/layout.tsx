@@ -63,6 +63,9 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export const viewport: Viewport = {
   themeColor: "#B96CB4",
   width: "device-width",
@@ -86,12 +89,19 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 --color-surface: ${theme.surfaceBg};
                 --color-section: ${theme.sectionBg};
               }
-              .bg-brand { background-color: ${theme.brandColor} !important; }
-              .text-brand { color: ${theme.brandColor} !important; }
-              .border-brand { border-color: ${theme.brandColor} !important; }
-              .ring-brand { --tw-ring-color: ${theme.brandColor} !important; }
-              .bg-surface { background-color: ${theme.surfaceBg} !important; }
-              .bg-section { background-color: ${theme.sectionBg} !important; }
+              .bg-brand { background-color: var(--color-brand) !important; }
+              .bg-brand-dark { background-color: var(--color-brand-dark) !important; }
+              .text-brand { color: var(--color-brand) !important; }
+              .text-brand-dark { color: var(--color-brand-dark) !important; }
+              .border-brand { border-color: var(--color-brand) !important; }
+              .ring-brand { --tw-ring-color: var(--color-brand) !important; }
+              .bg-surface { background-color: var(--color-surface) !important; }
+              .bg-section { background-color: var(--color-section) !important; }
+              .text-section { color: var(--color-section) !important; }
+              .hover\\:bg-brand:hover { background-color: var(--color-brand) !important; }
+              .hover\\:bg-brand-dark:hover { background-color: var(--color-brand-dark) !important; }
+              .hover\\:text-brand:hover { color: var(--color-brand) !important; }
+              .hover\\:border-brand:hover { border-color: var(--color-brand) !important; }
             `,
           }}
         />

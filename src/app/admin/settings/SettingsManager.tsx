@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { SiteSettings } from "@/services/settings.service";
 import { DEFAULT_SETTINGS } from "@/services/settings.service";
 
@@ -23,6 +24,7 @@ const HERO_IMAGE_PRESETS = [
 ];
 
 export function SettingsManager({ initialSettings }: { initialSettings: SiteSettings }) {
+  const router = useRouter();
   const [settings, setSettings] = useState<SiteSettings>(initialSettings);
   const [activeTab, setActiveTab] = useState<"hero" | "theme" | "announcement" | "contact">("hero");
   const [saving, setSaving] = useState(false);
@@ -102,6 +104,7 @@ export function SettingsManager({ initialSettings }: { initialSettings: SiteSett
         throw new Error(data.error || "Failed to update settings");
       }
 
+      router.refresh();
       setMessage({ text: "All changes saved successfully! Storefront has been updated.", type: "success" });
     } catch (err: unknown) {
       setMessage({

@@ -14,6 +14,9 @@ import {
 /** The "view everything" tile that always points at the Shop page. */
 const allGiftsTile = { name: "All Gifts", icon: "shopping_bag", href: "/shop" };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function HomePage() {
   const [dbCategories, trending, siteSettings] = await Promise.all([
     getAllCategories(),
