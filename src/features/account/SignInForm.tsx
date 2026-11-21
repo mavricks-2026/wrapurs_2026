@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { adminCredentials, authContent, demoCredentials } from "@/config/auth";
+import { authContent } from "@/config/auth";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/utils";
@@ -154,58 +154,6 @@ export function SignInForm({
           {!pending ? <Icon name="arrow_forward" className="text-[20px]" /> : null}
         </Button>
       </form>
-
-      {/* Admin Quick Credentials Card */}
-      <div className="mt-5 rounded-[16px] border border-brand/20 bg-brand/5 p-4">
-        <div className="flex items-center justify-between">
-          <p className="flex items-center gap-2 font-body text-[13px] font-bold text-brand-dark">
-            <Icon name="verified_user" className="text-[18px] text-brand" />
-            Admin Panel Login
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail(adminCredentials.email);
-              setPassword(adminCredentials.password);
-              setError("");
-            }}
-            className="rounded-full bg-brand px-2.5 py-1 text-[11px] font-bold text-white transition-opacity hover:opacity-90"
-          >
-            Auto-fill
-          </button>
-        </div>
-        <p className="mt-1.5 font-body text-[12.5px] leading-relaxed text-plum-muted">
-          Email: <span className="font-semibold text-plum select-all">{adminCredentials.email}</span>
-          <br />
-          Password: <span className="font-semibold text-plum select-all">{adminCredentials.password}</span>
-        </p>
-      </div>
-
-      {/* Customer Demo Account Card */}
-      <div className="mt-3 rounded-[16px] border border-line bg-section/60 p-4">
-        <div className="flex items-center justify-between">
-          <p className="flex items-center gap-2 font-body text-[13px] font-bold text-plum">
-            <Icon name="info" className="text-[18px] text-plum-muted" />
-            {authContent.demoHint.title}
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail(demoCredentials.email);
-              setPassword(demoCredentials.password);
-              setError("");
-            }}
-            className="rounded-full border border-line bg-white px-2.5 py-1 text-[11px] font-bold text-plum transition-colors hover:border-plum-muted"
-          >
-            Auto-fill
-          </button>
-        </div>
-        <p className="mt-1 font-body text-[12.5px] leading-relaxed text-plum-muted">
-          Email: <span className="font-semibold text-plum select-all">{demoCredentials.email}</span>
-          <br />
-          Password: <span className="font-semibold text-plum select-all">{demoCredentials.password}</span>
-        </p>
-      </div>
 
       <div className="mt-5 flex flex-col gap-2 text-center">
         <p className="font-body text-[13.5px] text-plum-muted">
