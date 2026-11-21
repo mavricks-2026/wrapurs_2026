@@ -15,7 +15,11 @@ import { cn } from "@/lib/utils";
 import { animationConfig } from "@/config/motion";
 import { AccountMenu } from "@/features/account";
 
-export function SiteHeader() {
+export function SiteHeader({
+  announcement,
+}: {
+  announcement?: { enabled: boolean; text: string; link?: string };
+} = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -35,6 +39,18 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-line bg-white shadow-soft">
+      {announcement?.enabled && announcement?.text ? (
+        <div className="bg-brand py-2 px-4 text-center font-body text-[13px] font-semibold text-white transition-colors">
+          {announcement.link ? (
+            <Link href={announcement.link} className="hover:underline inline-flex items-center justify-center gap-1.5">
+              <span>{announcement.text}</span>
+              <Icon name="arrow_forward" className="text-[15px]" />
+            </Link>
+          ) : (
+            <span>{announcement.text}</span>
+          )}
+        </div>
+      ) : null}
       <div className="mx-auto flex h-20 max-w-site items-center justify-between px-5 sm:px-6">
         {/* Logo — white lockup inside a brand badge */}
         <Link href="/" className="group flex items-center" aria-label={`${site.name} home`}>

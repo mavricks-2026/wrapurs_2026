@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { authContent, demoCredentials } from "@/config/auth";
+import { adminCredentials, authContent, demoCredentials } from "@/config/auth";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/utils";
@@ -49,18 +49,25 @@ export function SignInForm({
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!email || !password) {
+    const cleanEmail = email.trim();
+    const cleanPassword = password.trim();
+    if (!cleanEmail || !cleanPassword) {
       setError(authContent.errors.required);
       return;
     }
     setPending(true);
     setError("");
-    const result = await signIn("credentials", { email, password, redirect: false });
+    const result = await signIn("credentials", {
+      email: cleanEmail,
+      password: cleanPassword,
+      redirect: false,
+    });
     if (!result || result.error) {
       setPending(false);
       setError(authContent.errors.invalid);
@@ -114,16 +121,26 @@ export function SignInForm({
               {authContent.signIn.forgot}
             </span>
           </div>
-          <input
-            id="signin-password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={authContent.signIn.passwordPlaceholder}
-            className="w-full rounded-[14px] border border-line bg-white px-3.5 py-3 font-body text-[14px] text-plum outline-none transition-all placeholder:text-plum-muted/60 focus:border-brand focus:ring-2 focus:ring-brand/20"
-          />
+          <div className="relative">
+            <input
+              id="signin-password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={authContent.signIn.passwordPlaceholder}
+              className="w-full rounded-[14px] border border-line bg-white px-3.5 py-3 pr-11 font-body text-[14px] text-plum outline-none transition-all placeholder:text-plum-muted/60 focus:border-brand focus:ring-2 focus:ring-brand/20"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-plum-muted hover:text-plum p-1 transition-colors"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              <Icon name={showPassword ? "visibility_off" : "visibility"} className="text-[20px]" />
+            </button>
+          </div>
         </div>
 
         {error ? (
@@ -138,15 +155,55 @@ export function SignInForm({
         </Button>
       </form>
 
-      <div className="mt-5 rounded-[16px] border border-line bg-section/60 p-4">
-        <p className="flex items-center gap-2 font-body text-[13px] font-bold text-brand-dark">
-          <Icon name="info" className="text-[18px] text-brand" />
-          {authContent.demoHint.title}
+      {/* Admin Quick Credentials Card */}
+      <div className="mt-5 rounded-[16px] border border-brand/20 bg-brand/5 p-4">
+        <div className="flex items-center justify-between">
+          <p className="flex items-center gap-2 font-body text-[13px] font-bold text-brand-dark">
+            <Icon name="verified_user" className="text-[18px] text-brand" />
+            Admin Panel Login
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setEmail(adminCredentials.email);
+              setPassword(adminCredentials.password);
+              setError("");
+            }}
+            className="rounded-full bg-brand px-2.5 py-1 text-[11px] font-bold text-white transition-opacity hover:opacity-90"
+          >
+            Auto-fill
+          </button>
+        </div>
+        <p className="mt-1.5 font-body text-[12.5px] leading-relaxed text-plum-muted">
+          Email: <span className="font-semibold text-plum select-all">{adminCredentials.email}</span>
+          <br />
+          Password: <span className="font-semibold text-plum select-all">{adminCredentials.password}</span>
         </p>
+      </div>
+
+      {/* Customer Demo Account Card */}
+      <div className="mt-3 rounded-[16px] border border-line bg-section/60 p-4">
+        <div className="flex items-center justify-between">
+          <p className="flex items-center gap-2 font-body text-[13px] font-bold text-plum">
+            <Icon name="info" className="text-[18px] text-plum-muted" />
+            {authContent.demoHint.title}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setEmail(demoCredentials.email);
+              setPassword(demoCredentials.password);
+              setError("");
+            }}
+            className="rounded-full border border-line bg-white px-2.5 py-1 text-[11px] font-bold text-plum transition-colors hover:border-plum-muted"
+          >
+            Auto-fill
+          </button>
+        </div>
         <p className="mt-1 font-body text-[12.5px] leading-relaxed text-plum-muted">
-          {authContent.demoHint.body
-            .replace("{email}", demoCredentials.email)
-            .replace("{password}", demoCredentials.password)}
+          Email: <span className="font-semibold text-plum select-all">{demoCredentials.email}</span>
+          <br />
+          Password: <span className="font-semibold text-plum select-all">{demoCredentials.password}</span>
         </p>
       </div>
 

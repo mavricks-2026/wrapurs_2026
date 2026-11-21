@@ -6,9 +6,10 @@ export const metadata: Metadata = { title: "Admin" };
 
 /** Admin dashboard sections — live ones link to their management screen. */
 const sections = [
-  { name: "Categories", description: "The 14 client categories, live in the database", status: "In database", href: "/admin/categories" },
-  { name: "Products", description: "Create and publish products, images and pricing", status: "In database", href: "/admin/products" },
-  { name: "Orders", description: "Track, update and fulfil customer orders", status: "In database", href: "/admin/orders" },
+  { name: "Main Screen & Theme", description: "Customize homepage hero text, hero image, brand colors, and announcement banner", status: "Live", href: "/admin/settings" },
+  { name: "Products", description: "Create, publish, edit pricing, stock, badges and categories", status: "In database", href: "/admin/products" },
+  { name: "Categories", description: "Manage categories, icons, slugs and display sort order", status: "In database", href: "/admin/categories" },
+  { name: "Orders", description: "Track, update and fulfil customer orders and payments", status: "In database", href: "/admin/orders" },
   { name: "Customers", description: "Customer accounts, addresses and order history", status: "Coming soon", href: null },
   { name: "Coupons & Offers", description: "Discount codes and seasonal campaigns", status: "Coming soon", href: null },
 ];
@@ -19,11 +20,34 @@ export default async function AdminDashboardPage() {
 
   return (
     <div>
-      <h1 className="font-display text-[32px] text-plum">Dashboard</h1>
-      <p className="mt-1 text-[15px] text-plum-muted">
-        Signed in as {name} · role ADMIN. This is the admin foundation — management
-        screens are added in the next steps.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display text-[32px] text-plum">Admin Dashboard</h1>
+          <p className="mt-1 text-[15px] text-plum-muted">
+            Signed in as {name} · role ADMIN. Manage your storefront products, categories, orders, and appearance.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2.5">
+          <Link
+            href="/admin/settings"
+            className="rounded-full bg-brand px-4 py-2 text-[13px] font-bold text-white shadow-soft hover:bg-brand-dark"
+          >
+            🎨 Main Screen & Theme
+          </Link>
+          <Link
+            href="/admin/products"
+            className="rounded-full border border-line bg-white px-4 py-2 text-[13px] font-bold text-plum hover:border-brand hover:text-brand"
+          >
+            + Add Product
+          </Link>
+          <Link
+            href="/admin/categories"
+            className="rounded-full border border-line bg-white px-4 py-2 text-[13px] font-bold text-plum hover:border-brand hover:text-brand"
+          >
+            + Add Category
+          </Link>
+        </div>
+      </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {sections.map((section) => {

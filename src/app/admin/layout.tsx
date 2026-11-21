@@ -58,6 +58,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               >
                 Orders
               </Link>
+              <Link
+                href="/admin/settings"
+                className="rounded-full px-3 py-1.5 text-plum-muted hover:bg-section hover:text-brand"
+              >
+                Main Screen & Theme
+              </Link>
             </nav>
           </div>
           <div className="flex items-center gap-3 text-[13px]">

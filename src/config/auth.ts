@@ -70,6 +70,14 @@ export const demoCredentials = {
   password: "wrapurs123",
 } as const;
 
+/**
+ * Pre-configured admin credentials for the WrapUrs administration portal.
+ */
+export const adminCredentials = {
+  email: "hello@wrapurs.com",
+  password: "wrapurs2026",
+} as const;
+
 /** Account-area sidebar navigation. */
 export const accountNav = [
   { label: "Dashboard", href: "/account", icon: "space_dashboard" },

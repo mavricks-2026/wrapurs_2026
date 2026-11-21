@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { CategoryAdminRow } from "@/services/category.service";
 import type { ProductAdminRow, ProductImageInput } from "@/services/product-admin.service";
 
@@ -137,6 +137,53 @@ function ProductForm({
 }) {
   const [form, setForm] = useState<FormState>(initial);
   const [slugTouched, setSlugTouched] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/admin/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.message || data.error || "Upload failed");
+        }
+
+        setForm((prev) => {
+          const isFirst = prev.images.length === 0;
+          return {
+            ...prev,
+            images: [
+              ...prev.images,
+              {
+                key: imageKey++,
+                url: data.url,
+                alt: file.name.replace(/\.[^/.]+$/, ""),
+                isPrimary: isFirst,
+              },
+            ],
+          };
+        });
+      }
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to upload image");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   function set(key: keyof FormState, value: string) {
     setForm((prev) => {
@@ -349,27 +396,39 @@ function ProductForm({
         )}
       </fieldset>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-[12.5px] font-bold text-plum-muted">
-          Images (path under /public, e.g. /images/products/name.jpg — or an https:// URL)
+      <fieldset className="flex flex-col gap-3 rounded-[14px] border border-line bg-white/70 p-3">
+        <legend className="px-1 text-[12.5px] font-bold text-plum-muted">
+          Product Images (Upload photo files directly or provide URL)
         </legend>
         {form.images.map((image) => (
-          <div key={image.key} className="flex flex-wrap items-center gap-2">
+          <div key={image.key} className="flex flex-wrap items-center gap-2.5 rounded-[12px] border border-line bg-white p-2">
+            {image.url ? (
+              <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-[8px] border border-line bg-section">
+                <img
+                  src={image.url}
+                  alt={image.alt || "Product image"}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = "none";
+                  }}
+                />
+              </div>
+            ) : null}
             <input
-              className={`${inputClasses} w-72`}
+              className={`${inputClasses} flex-1 min-w-[200px]`}
               value={image.url}
-              placeholder="/images/products/…"
+              placeholder="/uploads/… or /images/products/…"
               onChange={(e) => updateImage(image.key, { url: e.target.value })}
               maxLength={500}
             />
             <input
-              className={`${inputClasses} w-44`}
+              className={`${inputClasses} w-36`}
               value={image.alt ?? ""}
               placeholder="Alt text"
               onChange={(e) => updateImage(image.key, { alt: e.target.value })}
               maxLength={200}
             />
-            <label className="flex items-center gap-1.5 text-[12.5px] font-bold text-plum-muted">
+            <label className="flex items-center gap-1.5 text-[12.5px] font-bold text-plum-muted cursor-pointer">
               <input
                 type="radio"
                 name="primary-image"
@@ -395,13 +454,29 @@ function ProductForm({
             </button>
           </div>
         ))}
-        <div>
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-full bg-brand px-4 py-1.5 text-[12.5px] font-bold text-white shadow-soft transition-colors hover:bg-brand-dark disabled:opacity-50 flex items-center gap-1.5"
+          >
+            <span>📁 {uploading ? "Uploading Image…" : "Upload Photo from Files"}</span>
+          </button>
           <button
             type="button"
             onClick={addImage}
             className="rounded-full border border-line bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-plum transition-colors hover:border-brand hover:text-brand"
           >
-            + Add image
+            + Add URL Manually
           </button>
         </div>
       </fieldset>

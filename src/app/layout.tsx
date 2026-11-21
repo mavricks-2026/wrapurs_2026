@@ -4,6 +4,7 @@ import "./globals.css";
 import { site } from "@/config/site";
 import { MotionProvider } from "@/components/motion";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { getSiteSettings } from "@/services/settings.service";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
@@ -68,9 +69,33 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const settings = await getSiteSettings();
+  const { theme, announcement } = settings;
+
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
+      <head>
+        <style
+          id="wrapurs-dynamic-theme"
+          dangerouslySetInnerHTML={{
+            __html: `
+              :root {
+                --color-brand: ${theme.brandColor};
+                --color-brand-dark: ${theme.brandDarkColor};
+                --color-surface: ${theme.surfaceBg};
+                --color-section: ${theme.sectionBg};
+              }
+              .bg-brand { background-color: ${theme.brandColor} !important; }
+              .text-brand { color: ${theme.brandColor} !important; }
+              .border-brand { border-color: ${theme.brandColor} !important; }
+              .ring-brand { --tw-ring-color: ${theme.brandColor} !important; }
+              .bg-surface { background-color: ${theme.surfaceBg} !important; }
+              .bg-section { background-color: ${theme.sectionBg} !important; }
+            `,
+          }}
+        />
+      </head>
       <body>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -86,7 +111,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             >
               Skip to content
             </a>
-            <SiteHeader />
+            <SiteHeader announcement={announcement} />
             <main id="main">{children}</main>
             <SiteFooter />
             <WhatsAppButton />

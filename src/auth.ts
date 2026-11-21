@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "./auth.config";
 import { verifyCredentials, type UserRole } from "@/services/auth/user-store";
-import { demoCredentials } from "@/config/auth";
+import { adminCredentials, demoCredentials } from "@/config/auth";
 
 /**
  * auth.ts — the Node-side Auth.js instance.
@@ -34,6 +34,7 @@ function resolveRole(email: string, baseRole: UserRole): UserRole {
   if (baseRole === "ADMIN") return "ADMIN";
   const normalized = email.trim().toLowerCase();
   if (normalized === demoCredentials.email.toLowerCase()) return "CUSTOMER";
+  if (normalized === adminCredentials.email.toLowerCase()) return "ADMIN";
   return resolveAdminEmails().has(normalized) ? "ADMIN" : "CUSTOMER";
 }
 

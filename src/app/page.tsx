@@ -1,6 +1,7 @@
 import { WaveDivider } from "@/components/ui/WaveDivider";
 import { getAllCategories } from "@/services/category.service";
 import { getTrendingProducts } from "@/services/product.service";
+import { getSiteSettings } from "@/services/settings.service";
 import {
   CategoryGrid,
   Hero,
@@ -14,9 +15,10 @@ import {
 const allGiftsTile = { name: "All Gifts", icon: "shopping_bag", href: "/shop" };
 
 export default async function HomePage() {
-  const [dbCategories, trending] = await Promise.all([
+  const [dbCategories, trending, siteSettings] = await Promise.all([
     getAllCategories(),
     getTrendingProducts(),
+    getSiteSettings(),
   ]);
 
   const categoryTiles = dbCategories.map((category) => ({
@@ -27,7 +29,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <Hero />
+      <Hero settings={siteSettings.hero} />
       <WaveDivider />
       {/* Falls back to the demo tiles inside CategoryGrid when the DB list is empty. */}
       <CategoryGrid
