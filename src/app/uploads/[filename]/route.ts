@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -23,8 +24,26 @@ export async function GET(
     return new NextResponse("Not Found", { status: 404 });
   }
 
-  const filePath = path.join(process.cwd(), "public", "uploads", filename);
+  // 1. Try reading from Neon PostgreSQL database (works seamlessly on Vercel)
+  try {
+    const file = await prisma.uploadedFile.findUnique({
+      where: { filename },
+    });
+    if (file && file.data) {
+      return new NextResponse(file.data, {
+        status: 200,
+        headers: {
+          "Content-Type": file.mimeType || "image/jpeg",
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
+      });
+    }
+  } catch (err) {
+    console.warn("DB file fetch error:", err);
+  }
 
+  // 2. Fallback to local disk (for static/local development files)
+  const filePath = path.join(process.cwd(), "public", "uploads", filename);
   try {
     const fileBuffer = await fs.readFile(filePath);
     const ext = path.extname(filename).toLowerCase();

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { requireAdmin } from "@/services/admin/guard";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "file_too_large", message: "File exceeds 12MB limit." }, { status: 400 });
   }
 
-  const mimeType = blob.type.toLowerCase();
+  const mimeType = blob.type.toLowerCase() || "image/jpeg";
   if (!ALLOWED_MIME_TYPES.has(mimeType) && !mimeType.startsWith("image/")) {
     return NextResponse.json({ error: "invalid_type", message: "Only image files (JPEG, PNG, WEBP, GIF, SVG) are allowed." }, { status: 400 });
   }
@@ -57,22 +58,44 @@ export async function POST(request: Request) {
     .slice(0, 35);
 
   const filename = `${Date.now()}-${safeBase || "upload"}${extension}`;
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  const buffer = Buffer.from(await blob.arrayBuffer());
 
+  let saved = false;
+
+  // 1. Persist to Neon PostgreSQL database (reliable in Vercel & cloud serverless)
   try {
-    await fs.mkdir(uploadsDir, { recursive: true });
-    const buffer = Buffer.from(await blob.arrayBuffer());
-    await fs.writeFile(path.join(uploadsDir, filename), buffer);
-
-    const publicUrl = `/uploads/${filename}`;
-    return NextResponse.json({
-      ok: true,
-      url: publicUrl,
-      filename,
-      size: blob.size,
+    await prisma.uploadedFile.upsert({
+      where: { filename },
+      update: { data: buffer, mimeType, size: blob.size },
+      create: { filename, mimeType, data: buffer, size: blob.size },
     });
-  } catch (err) {
-    console.error("Failed to save uploaded file:", err);
-    return NextResponse.json({ error: "save_failed", message: "Failed to save file to server." }, { status: 500 });
+    saved = true;
+  } catch (dbErr) {
+    console.warn("Database image save warning:", dbErr);
   }
+
+  // 2. Also save to local public/uploads if filesystem is writable (local development)
+  try {
+    const uploadsDir = path.join(process.cwd(), "public", "uploads");
+    await fs.mkdir(uploadsDir, { recursive: true });
+    await fs.writeFile(path.join(uploadsDir, filename), buffer);
+    saved = true;
+  } catch {
+    // Expected on Vercel's read-only serverless environment
+  }
+
+  if (!saved) {
+    return NextResponse.json(
+      { error: "save_failed", message: "Failed to persist image. Please verify DATABASE_URL is configured." },
+      { status: 500 }
+    );
+  }
+
+  const publicUrl = `/uploads/${filename}`;
+  return NextResponse.json({
+    ok: true,
+    url: publicUrl,
+    filename,
+    size: blob.size,
+  });
 }
