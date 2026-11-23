@@ -323,7 +323,12 @@ export function CheckoutView({ demoPayments }: { demoPayments: boolean }) {
           contact: address.mobile,
         },
         notes: { method },
-        theme: { color: "#B96CB4" },
+        theme: {
+          color:
+            typeof window !== "undefined"
+              ? getComputedStyle(document.documentElement).getPropertyValue("--color-brand").trim() || "#B96CB4"
+              : "#B96CB4",
+        },
       });
 
       const verifyResponse = await fetch("/api/payment/verify", {
